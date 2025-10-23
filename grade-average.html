@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>평균 등급 계산기 (숫자 등급 전용)</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#121933; --ink:#e9ecff; --muted:#acb3d9;
+      --accent:#6ea8ff; --accent-2:#9ad0ff; --bad:#ff6b6b; --good:#79d18c;
+      --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 500px at 20% 0%,#1c2552 0%,#0b1020 60%) fixed, var(--bg);
+      color:var(--ink);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Apple SD Gothic Neo, "맑은 고딕", sans-serif;
+      line-height:1.5;
+    }
+    .wrap{max-width:1100px; margin:40px auto; padding:0 20px;}
+    header{display:flex; align-items:baseline; gap:14px; margin-bottom:20px;}
+    h1{font-size: clamp(22px, 3vw, 30px); margin:0;}
+    .sub{color:var(--muted)}
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border); box-shadow:var(--shadow); border-radius:var(--radius); overflow:hidden;
+    }
+    .toolbar{
+      display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+      padding:14px 16px; border-bottom:1px solid var(--border); backdrop-filter: blur(6px);
+    }
+    .btn{
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      color:var(--ink); padding:10px 14px; border-radius:10px; cursor:pointer;
+      transition:.15s transform ease, .2s background;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{background: linear-gradient(180deg, var(--accent), var(--accent-2)); color:#041229; border-color:transparent; font-weight:600}
+    .btn.ghost{background:transparent}
+    .btn.danger{border-color:rgba(255,107,107,.3); color:#ffd6d6}
+    .chip{
+      display:inline-flex; gap:6px; align-items:center;
+      font-size:13px; color:var(--muted); padding:6px 10px; border:1px solid var(--border);
+      border-radius:999px;
+    }
+    .table{width:100%; border-collapse: collapse;}
+    thead th{ text-align:left; font-weight:600; color:var(--muted); padding:12px 14px; border-bottom:1px solid var(--border); }
+    tbody td{ padding:10px 14px; border-bottom:1px dashed var(--border); }
+    tbody tr:last-child td{border-bottom:none}
+    input[type="text"], input[type="number"]{
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border);
+      background:rgba(255,255,255,.04); color:var(--ink);
+      outline:none; transition:.15s border-color;
+    }
+    input::placeholder{color:#9aa3cf}
+    input:focus{border-color: var(--accent)}
+    .row-actions{display:flex; gap:8px}
+    .result{
+      display:grid; gap:10px; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+      padding:16px; border-top:1px solid var(--border); background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.15));
+    }
+    .stat{ padding:14px; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.03); }
+    .stat .label{font-size:12px; color:var(--muted)}
+    .stat .value{font-size:22px; font-weight:700; margin-top:4px}
+    .note{padding:10px 16px; color:#cbd3ff; font-size:13px}
+    .sr{position:absolute; left:-9999px}
+    @media (max-width:640px){
+      thead{display:none}
+      tbody td{display:block; padding:8px 14px}
+      tbody td::before{content:attr(data-th); display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+      .row-actions{justify-content:flex-end}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>평균 등급 계산기</h1>
+      <span class="sub">숫자 등급만 사용합니다 (예: 1~9). 주당 수업 횟수를 가중치로 계산합니다.</span>
+    </header>
+
+    <div class="card" role="region" aria-labelledby="calc-title">
+      <div class="toolbar">
+        <button class="btn" id="addRowBtn" type="button" title="행 추가">＋ 행 추가</button>
+        <button class="btn ghost" id="resetBtn" type="button" title="모든 입력 지우기">초기화</button>
+        <button class="btn primary" id="calcBtn" type="button" title="계산하기">계산</button>
+        <div class="chip" style="margin-left:auto">유효 행: <b id="validCount">0</b> / 총 <b id="totalCount">0</b></div>
+      </div>
+
+      <div style="overflow:auto">
+        <table class="table" aria-describedby="help">
+          <thead>
+            <tr>
+              <th style="width:36%">과목명</th>
+              <th style="width:20%">시간 (주당 횟수)</th>
+              <th style="width:24%">등급 (숫자)</th>
+              <th style="width:20%">작업</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="note" id="help">
+        참고: 숫자 등급은 그대로 평균합니다(예: 1~9). 시간(주당 수업 횟수)을 가중치로 사용합니다. 값이 비어있거나 잘못된 행은 계산에서 제외됩니다.
+      </div>
+
+      <div class="result" id="resultPanel" aria-live="polite">
+        <div class="stat">
+          <div class="label">총 과목 수</div>
+          <div class="value" id="statSubjects">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">총 주당 수업 수(가중치 합)</div>
+          <div class="value" id="statWeight">0</div>
+        </div>
+        <div class="stat">
+          <div class="label" id="labelWeighted">가중 평균 등급</div>
+          <div class="value" id="statWeighted">-</div>
+        </div>
+        <div class="stat">
+          <div class="label" id="labelSimple">단순 평균 등급</div>
+          <div class="value" id="statSimple">-</div>
+        </div>
+        <div class="stat">
+          <div class="label">요약 복사</div>
+          <button class="btn" id="copyBtn" type="button">복사하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <template id="rowTpl">
+    <tr class="course-row">
+      <td data-th="과목명">
+        <input type="text" inputmode="text" autocomplete="off" placeholder="예: 수학" aria-label="과목명" />
+      </td>
+      <td data-th="시간 (주당 횟수)">
+        <input type="number" min="1" step="1" placeholder="예: 3" aria-label="주당 수업 횟수(정수)" />
+      </td>
+      <td data-th="등급 (숫자)">
+        <input type="number" min="0" step="0.1" placeholder="예: 1" aria-label="등급(숫자)" />
+      </td>
+      <td data-th="작업" class="row-actions">
+        <button class="btn danger remove" type="button" title="이 행 삭제">삭제</button>
+      </td>
+    </tr>
+  </template>
+
+  <script>
+    (function(){
+      const rowsEl = document.getElementById('rows');
+      const tpl = document.getElementById('rowTpl');
+      const addRowBtn = document.getElementById('addRowBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const calcBtn = document.getElementById('calcBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const statSubjects = document.getElementById('statSubjects');
+      const statWeight = document.getElementById('statWeight');
+      const statWeighted = document.getElementById('statWeighted');
+      const statSimple = document.getElementById('statSimple');
+      const validCount = document.getElementById('validCount');
+      const totalCount = document.getElementById('totalCount');
+
+      function parseNumeric(s){
+        if(s == null) return null;
+        const k = String(s).replace(',', '.').trim();
+        if(!k) return null;
+        const v = Number(k);
+        return Number.isFinite(v) ? v : null;
+      }
+
+      function addRow(prefill){
+        const node = tpl.content.cloneNode(true);
+        const tr = node.querySelector('tr');
+        const [nameEl, timeEl, gradeEl] = tr.querySelectorAll('input');
+
+        if (prefill){
+          nameEl.value = prefill.name ?? '';
+          timeEl.value = prefill.times ?? '';
+          gradeEl.value = prefill.grade ?? '';
+        }
+
+        // 삭제 버튼
+        tr.querySelector('.remove').addEventListener('click', () => {
+          tr.remove();
+          refresh();
+        });
+
+        // 마지막 입력에서 Tab → 새 행
+        gradeEl.addEventListener('keydown', (e)=>{
+          if(e.key === 'Tab' && !e.shiftKey){
+            const isLast = tr === rowsEl.lastElementChild;
+            if(isLast){
+              setTimeout(()=> addRow(), 0);
+            }
+          }
+        });
+
+        rowsEl.appendChild(node);
+        refresh();
+      }
+
+      function getRows(){
+        return Array.from(rowsEl.querySelectorAll('tr.course-row')).map(tr=>{
+          const [nameEl, timeEl, gradeEl] = tr.querySelectorAll('input');
+          return { tr, nameEl, timeEl, gradeEl };
+        });
+      }
+
+      function setValidity(el, ok){
+        el.style.borderColor = ok ? 'var(--border)' : 'rgba(255,107,107,.55)';
+      }
+
+      function calculate(){
+        const items = getRows();
+
+        let totalWeight = 0;
+        let weightedSum = 0;
+        let simpleSum = 0;
+        let simpleCount = 0;
+        let validRows = 0;
+        let totalRows = items.length;
+
+        for(const r of items){
+          const w = parseNumeric(r.timeEl.value);
+          const g = parseNumeric(r.gradeEl.value);
+
+          // 유효성 초기화
+          setValidity(r.timeEl, true);
+          setValidity(r.gradeEl, true);
+
+          const wOk = Number.isFinite(w) && w > 0 && Number.isInteger(w);
+          const gOk = Number.isFinite(g);
+
+          if (!wOk) setValidity(r.timeEl, false);
+          if (!gOk) setValidity(r.gradeEl, false);
+
+          if (wOk && gOk){
+            validRows++;
+            totalWeight += w;
+            weightedSum += g * w;
+            simpleSum += g;
+            simpleCount++;
+          }
+        }
+
+        validCount.textContent = String(validRows);
+        totalCount.textContent = String(totalRows);
+        statSubjects.textContent = String(simpleCount);
+        statWeight.textContent = String(totalWeight);
+
+        const weightedAvg = totalWeight > 0 ? (weightedSum / totalWeight) : NaN;
+        const simpleAvg = simpleCount > 0 ? (simpleSum / simpleCount) : NaN;
+        const fmt = (v) => Number.isFinite(v) ? v.toFixed(2) : '-';
+
+        statWeighted.textContent = fmt(weightedAvg);
+        statSimple.textContent = fmt(simpleAvg);
+
+        return { totalWeight, weightedAvg, simpleAvg, simpleCount };
+      }
+
+      function refresh(){
+        totalCount.textContent = String(getRows().length);
+        calculate();
+      }
+
+      // 버튼 핸들러
+      addRowBtn.addEventListener('click', ()=> addRow());
+      resetBtn.addEventListener('click', ()=>{
+        rowsEl.innerHTML = '';
+        for(let i=0;i<3;i++) addRow();
+      });
+      calcBtn.addEventListener('click', ()=> calculate());
+
+      // 실시간 계산(원하면 끄셔도 됩니다)
+      rowsEl.addEventListener('input', (e)=>{
+        if (e.target.tagName === 'INPUT') calculate();
+      });
+
+      // 복사 버튼
+      copyBtn.addEventListener('click', async ()=>{
+        const {totalWeight, weightedAvg, simpleAvg, simpleCount} = calculate();
+        const lines = [
+          `과목 수: ${simpleCount}`,
+          `총 주당 수업 수(가중치 합): ${totalWeight}`,
+          `가중 평균 등급: ${Number.isFinite(weightedAvg) ? weightedAvg.toFixed(2) : '-'}`,
+          `단순 평균 등급: ${Number.isFinite(simpleAvg) ? simpleAvg.toFixed(2) : '-'}`
+        ];
+        const text = lines.join('\n');
+        try{
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = '복사됨!';
+          setTimeout(()=> copyBtn.textContent = '복사하기', 1200);
+        }catch(err){
+          alert('복사에 실패했습니다. 브라우저 권한을 확인해주세요.');
+        }
+      });
+
+      // 초기 행 3개 + 샘플
+      addRow({name:'국어', times:4, grade:'2'});
+      addRow({name:'수학', times:3, grade:'1'});
+      addRow({name:'영어', times:3, grade:'2'});
+
+      // 단축키: Ctrl/Cmd+Enter → 계산 결과 갱신
+      window.addEventListener('keydown', (e)=>{
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+          calculate();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
