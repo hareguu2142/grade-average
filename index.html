@@ -74,6 +74,72 @@
       tbody td::before{content:attr(data-th); display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
       .row-actions{justify-content:flex-end}
     }
+
+    /* === Light theme override (append to the end of your <style>) === */
+:root{
+  --bg:#f6f8ff;
+  --card:#ffffff;
+  --ink:#12142a;
+  --muted:#586089;
+  --accent:#3b82f6;
+  --accent-2:#60a5fa;
+  --bad:#e53935;
+  --good:#22c55e;
+  --border:rgba(0,0,0,.12);
+  --shadow:0 8px 28px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.6);
+  --radius:14px; /* 동일 유지 */
+}
+
+body{
+  background:
+    radial-gradient(1200px 500px at 20% 0%, #eaf1ff 0%, #f6f8ff 60%) fixed,
+    var(--bg);
+  color:var(--ink);
+}
+
+.card{
+  background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.01));
+  border-color:var(--border);
+  box-shadow:var(--shadow);
+}
+
+.btn{
+  background:linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.02));
+  color:var(--ink);
+  border-color:var(--border);
+}
+
+.btn.primary{
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  color:#ffffff;              /* 밝은 배경 대비 개선 */
+  border-color:transparent;
+  font-weight:600;
+}
+
+input[type="text"], input[type="number"]{
+  background:rgba(0,0,0,.03);
+  color:var(--ink);
+  border-color:var(--border);
+}
+
+input::placeholder{ color:#8a90ab }
+
+.result{
+  background:linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.06));
+}
+
+.stat{
+  background:rgba(0,0,0,.02);
+}
+
+.note{
+  color:#344169;
+}
+
+/* 오류 표시(빨간 테두리) 대비 유지용 - 기존 로직 그대로 사용됨 */
+
+
+    
   </style>
 </head>
 <body>
